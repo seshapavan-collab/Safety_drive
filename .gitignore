@@ -1,4 +1,16 @@
-.venv/
-.idea/
+# AI Models
+*.task
+
+# Local Database
+guardian_drive.db
+
+# Python & IDE files
 __pycache__/
-*.pyc
+.streamlit/
+.idea/
+.vscode/
+venv/
+.venv/
+.venv-mp/
+.venv312/
+.venv-win/
