@@ -86,6 +86,10 @@ def main():
     if st.session_state.running:
         cap = cv2.VideoCapture(0)
 
+        if not cap.isOpened():
+            st.error("Camera not available on cloud server.")
+            return
+
         # Init MediaPipe
         detector = vision.FaceLandmarker.create_from_options(vision.FaceLandmarkerOptions(
             base_options=python.BaseOptions(model_asset_path='face_landmarker.task'),
