@@ -1,8 +1,9 @@
 import sqlite3
 import time
 from datetime import datetime
+from pathlib import Path
 
-DB_NAME = 'guardian_drive.db'
+DB_NAME = str(Path(__file__).resolve().parent / 'guardian_drive.db')
 
 
 def init_db():
@@ -49,6 +50,12 @@ def get_event_frequency(event_type, seconds=300):
     conn = sqlite3.connect(DB_NAME, check_same_thread=False)
     cursor = conn.cursor()
     limit = time.time() - seconds
+
+    if event_type == "YAWN":
+        cursor.execute("SELECT COALESCE(MAX(unix_time), 0) FROM logs WHERE type='RECOVERY'")
+        last_recovery = cursor.fetchone()[0]
+        limit = max(limit, last_recovery)
+
     cursor.execute("SELECT COUNT(*) FROM logs WHERE type=? AND unix_time > ?", (event_type, limit))
     count = cursor.fetchone()[0]
     conn.close()
@@ -56,8 +63,5 @@ def get_event_frequency(event_type, seconds=300):
 
 
 def reset_yawn_history():
-    """Manual wipe for the recovery logic."""
-    conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-    conn.execute("DELETE FROM logs")
-    conn.commit()
-    conn.close()
+    """Marks recovery without deleting visible event history."""
+    log_event("RECOVERY")

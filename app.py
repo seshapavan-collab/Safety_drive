@@ -6,55 +6,102 @@ from mediapipe.tasks.python import vision
 
 # Import your fixed modules
 from utils import get_head_pose
-from database import init_db, log_event, get_event_frequency, reset_yawn_history
+from database import DB_NAME, init_db, log_event, get_event_frequency, reset_yawn_history
 
 # --- SYSTEM CONFIG ---
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 st.set_page_config(page_title="GuardianDrive OS", layout="wide", initial_sidebar_state="expanded")
 
-# --- CUSTOM CSS (Black & Electric Blue + Dynamic Colors) ---
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=JetBrains+Mono:wght@700&display=swap');
+THEMES = {
+    "Dark": {"bg": "#000000", "sidebar": "#050505", "accent": "#00D1FF", "card": "rgba(255,255,255,0.02)", "border": "#333333"},
+    "Light": {"bg": "#FFFFFF", "sidebar": "#F8FAFC", "accent": "#0369A1", "card": "#FFFFFF", "border": "#E5E7EB"},
+    "Blue": {"bg": "#071A2F", "sidebar": "#04101F", "accent": "#38BDF8", "card": "rgba(255,255,255,0.04)", "border": "#164E63"},
+    "Green": {"bg": "#061A12", "sidebar": "#03100B", "accent": "#22C55E", "card": "rgba(255,255,255,0.04)", "border": "#166534"},
+}
 
-    .stApp { background-color: #000000; color: #FFFFFF; font-family: 'Orbitron', sans-serif; }
 
-    /* Neon Status Card */
-    .status-card {
-        background: rgba(255, 255, 255, 0.02);
-        border-radius: 30px;
-        border: 4px solid #333;
-        padding: 60px;
-        text-align: center;
-        transition: all 0.4s ease-in-out;
-        margin-bottom: 20px;
-    }
+def readable_text_color(hex_color):
+    hex_color = hex_color.lstrip("#")
+    r, g, b = (int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+    return "#111827" if ((r * 299 + g * 587 + b * 114) / 1000) > 150 else "#FFFFFF"
 
-    .alert-text { 
-        font-size: 110px !important; 
-        font-weight: 900; 
-        letter-spacing: 12px; 
-        margin: 0; 
-        text-transform: uppercase;
-    }
 
-    .mega-metric { font-family: 'JetBrains Mono'; font-size: 70px; margin: 0; }
-    .label { color: #555; font-size: 14px; text-transform: uppercase; letter-spacing: 4px; margin-bottom: 5px; }
+def apply_theme(theme):
+    text_color = readable_text_color(theme["bg"])
+    muted_color = "#4B5563" if text_color == "#111827" else "#555555"
+    heading_color = "#374151" if text_color == "#111827" else "#222222"
+    button_hover_text = readable_text_color(theme["accent"])
 
-    /* Sidebar styling */
-    section[data-testid="stSidebar"] { background-color: #050505; border-right: 1px solid #222; }
-    .stButton>button { 
-        background-color: #000; 
-        color: #00D1FF; 
-        border: 1px solid #00D1FF; 
-        border-radius: 5px; 
-        height: 3.5em; 
-        font-weight: bold; 
-        width: 100%;
-    }
-    .stButton>button:hover { background-color: #00D1FF; color: black; box-shadow: 0 0 20px #00D1FF; }
-</style>
-""", unsafe_allow_html=True)
+    st.markdown(f"""
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=JetBrains+Mono:wght@700&display=swap');
+
+        .stApp {{ background-color: {theme["bg"]}; color: {text_color}; font-family: 'Orbitron', sans-serif; }}
+        .stMarkdown, .stText, label, p, h1, h2, h3, h4, h5, h6 {{ color: {text_color}; }}
+
+        .status-card {{
+            background: {theme["card"]};
+            border-radius: 30px;
+            border: 4px solid {theme["border"]};
+            padding: 24px;
+            text-align: center;
+            aspect-ratio: 4 / 3;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: all 0.4s ease-in-out;
+            margin-bottom: 20px;
+        }}
+
+        .alert-text {{
+            font-size: 56px !important;
+            font-weight: 900;
+            letter-spacing: 6px;
+            margin: 0;
+            text-transform: uppercase;
+            overflow-wrap: anywhere;
+        }}
+
+        .mega-metric {{ font-family: 'JetBrains Mono'; font-size: 70px; margin: 0; }}
+        .label {{ color: {muted_color}; font-size: 14px; text-transform: uppercase; letter-spacing: 4px; margin-bottom: 5px; }}
+        .theme-heading {{ text-align: center; color: {heading_color}; letter-spacing: 8px; }}
+
+        section[data-testid="stSidebar"] {{ background-color: {theme["sidebar"]}; border-right: 1px solid {theme["border"]}; }}
+        .stButton>button {{
+            background-color: {theme["bg"]};
+            color: {theme["accent"]};
+            border: 1px solid {theme["accent"]};
+            border-radius: 5px;
+            height: 3.5em;
+            font-weight: bold;
+            width: 100%;
+        }}
+        .stButton>button:hover {{
+            background-color: {theme["accent"]};
+            color: {button_hover_text};
+            box-shadow: 0 0 20px {theme["accent"]};
+        }}
+        .st-key-start_engine button {{
+            color: #22C55E;
+            border-color: #22C55E;
+        }}
+        .st-key-start_engine button:hover {{
+            background-color: #22C55E;
+            color: #000000;
+            box-shadow: 0 0 20px #22C55E;
+        }}
+        .st-key-stop_engine button {{
+            color: #EF4444;
+            border-color: #EF4444;
+        }}
+        .st-key-stop_engine button:hover {{
+            background-color: #EF4444;
+            color: #FFFFFF;
+            box-shadow: 0 0 20px #EF4444;
+        }}
+    </style>
+    """, unsafe_allow_html=True)
 
 
 # --- MATH HELPER ---
@@ -72,6 +119,28 @@ def main():
     if 'running' not in st.session_state: st.session_state.running = False
     if 'calibrated' not in st.session_state: st.session_state.calibrated = False
 
+    with st.sidebar:
+        theme_name = st.selectbox(
+            "Theme",
+            ["Dark", "Light", "Blue", "Green", "Custom"],
+            index=["Dark", "Light", "Blue", "Green", "Custom"].index(st.session_state.get("theme_name", "Light")),
+            key="theme_name",
+        )
+        if theme_name == "Custom":
+            custom_bg = st.color_picker("Background", st.session_state.get("custom_bg", "#000000"), key="custom_bg")
+            custom_accent = st.color_picker("Accent", st.session_state.get("custom_accent", "#00D1FF"), key="custom_accent")
+            theme = {
+                "bg": custom_bg,
+                "sidebar": custom_bg,
+                "accent": custom_accent,
+                "card": "rgba(255,255,255,0.04)" if readable_text_color(custom_bg) == "#FFFFFF" else "#FFFFFF",
+                "border": custom_accent,
+            }
+        else:
+            theme = THEMES[theme_name]
+
+    apply_theme(theme)
+
     # Init Hardware/DB
     init_db()
     pygame.mixer.init()
@@ -86,27 +155,30 @@ def main():
         if st.button("📊 DASHBOARD"): st.session_state.page = "Dashboard"
         if st.button("📑 VIEW LOGS"): st.session_state.page = "Logs"
         st.markdown("<br><br>", unsafe_allow_html=True)
-        if st.button("🚀 START ENGINE", type="primary"): st.session_state.running = True
-        if st.button("🛑 STOP ENGINE"):
+        if st.button("START ENGINE", key="start_engine"): st.session_state.running = True
+        if st.button("STOP ENGINE", key="stop_engine"):
             st.session_state.running = False
             if alarm: alarm.stop()
             st.rerun()
-        if st.button("🎯 CALIBRATE"): st.session_state.calibrated = False
+        
 
     # --- LOGS PAGE ---
     if st.session_state.page == "Logs":
         st.header("📑 SYSTEM EVENT LOGS")
-        conn = sqlite3.connect('guardian_drive.db')
+        conn = sqlite3.connect(DB_NAME)
         df = pd.read_sql_query("SELECT type, timestamp FROM logs ORDER BY id DESC", conn)
         conn.close()
-        st.dataframe(df, use_container_width=True)
+        if df.empty:
+            st.info("No events logged yet. Start the engine and trigger a drowsy, nodding, or yawn event.")
+        else:
+            st.dataframe(df, use_container_width=True)
         return
 
     # --- DASHBOARD PAGE ---
-    st.markdown("<h3 style='text-align: center; color:#222; letter-spacing:8px;'>NEURAL SENSOR ARRAY v3.0</h3>",
+    st.markdown("<h3 class='theme-heading'>NEURAL SENSOR ARRAY v3.0</h3>",
                 unsafe_allow_html=True)
 
-    col_status, col_video = st.columns([1.3, 1])
+    col_status, col_video = st.columns([1, 1])
 
     with col_status:
         status_ui = st.empty()

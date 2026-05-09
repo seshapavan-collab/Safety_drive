@@ -53,9 +53,9 @@ def main():
         st.markdown("<h2 style='color:#00FFA3;'>🛡️ GUARDIANDRIVE</h2>", unsafe_allow_html=True)
         st.caption("SYSTEM CORE: ACTIVE")
         st.markdown("---")
-        start_btn = st.button("🚀 START ENGINE", type="primary", use_container_width=True)
-        stop_btn = st.button("🛑 STOP ENGINE", use_container_width=True)
-        cal_btn = st.button("🎯 CALIBRATE", use_container_width=True)
+        start_btn = st.button("START ENGINE", type="primary", use_container_width=True)
+        stop_btn = st.button("STOP ENGINE", use_container_width=True)
+
 
         if start_btn: st.session_state.running = True
         if stop_btn:
