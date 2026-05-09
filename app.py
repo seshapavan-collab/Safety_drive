@@ -143,10 +143,11 @@ def main():
 
     # Init Hardware/DB
     init_db()
-    pygame.mixer.init()
-    alarm = None
-    if os.path.exists("assets/sound.wav"):
-        alarm = pygame.mixer.Sound("assets/sound.wav")
+    try:
+        pygame.mixer.init()
+        alarm = pygame.mixer.Sound("assets/sound.wav") if os.path.exists("assets/sound.wav") else None
+    except:
+        alarm = None
 
     # --- SIDEBAR NAVIGATION ---
     with st.sidebar:
@@ -160,7 +161,7 @@ def main():
             st.session_state.running = False
             if alarm: alarm.stop()
             st.rerun()
-        
+
 
     # --- LOGS PAGE ---
     if st.session_state.page == "Logs":
